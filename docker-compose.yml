@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: memoria-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: memoria
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d memoria"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: memoria-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - PROVIDERS=${PROVIDERS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_SITE_URL=${OPENROUTER_SITE_URL}
+      - OPENROUTER_APP_NAME=${OPENROUTER_APP_NAME}
+      - LLM_MODEL=${LLM_MODEL}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - RETRIEVAL_TOP_K=${RETRIEVAL_TOP_K}
+      - HISTORY_LIMIT=${HISTORY_LIMIT}
+      - MEMORY_LIMIT=${MEMORY_LIMIT}
+      - SUMMARY_MAX_TOKENS=${SUMMARY_MAX_TOKENS}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - CONNECT_TIMEOUT=${CONNECT_TIMEOUT}
+      - READ_TIMEOUT=${READ_TIMEOUT}
+      - WRITE_TIMEOUT=${WRITE_TIMEOUT}
+      - TOTAL_TIMEOUT=${TOTAL_TIMEOUT}
+      - RATE_LIMIT_RPS=${RATE_LIMIT_RPS}
+    ports:
+      - "8000:8000"
+
+volumes:
+  dbdata:
