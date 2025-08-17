@@ -32,6 +32,6 @@ Memoria is a lightweight memory system for LLMs, designed to provide long-term m
 ```bash
 git clone https://github.com/jonwick68658/memoria
 cd memoria
-cp .env.sample .env  # fill in keys and config
+cp .env.example .env  # fill in keys and config
 docker compose up -d
 
