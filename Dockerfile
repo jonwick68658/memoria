@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src ./src
 COPY app ./app
 COPY db ./db
+COPY scripts ./scripts
 COPY README.md ./
 
 # Make Python package imports work

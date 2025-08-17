@@ -8,11 +8,11 @@ from .db import DB
 from .llm import LLMGateway, EmbeddingClient
 
 EXTRACT_SYSTEM = "You are a precise extractor. Output JSON only."
-EXTRACT_PROMPT = """From the user’s latest message, extract durable, user-specific memories to store.
+EXTRACT_PROMPT = """From the user's latest message, extract durable, user-specific memories to store.
 Only include: stable preferences, explicit corrections, facts about the user or their projects, decisions/plans with dates, or clear entities/relationships.
 Do not include generic knowledge or assistant content.
 Output a JSON array of objects: [
-  { "type": "preference|correction|fact|plan|entity|relation", "text": "...", "idempotency_key": "stable-key", "confidence": 0.0-1.0 }
+  {{"type": "preference|correction|fact|plan|entity|relation", "text": "...", "idempotency_key": "stable-key", "confidence": 0.0-1.0}}
 ]
 If there are none, output [].
 
