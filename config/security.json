@@ -1,0 +1,175 @@
+{
+  "security": {
+    "input_validation": {
+      "max_length": 10000,
+      "allowed_characters": "a-zA-Z0-9\\s\\.,!?;:'\"()\\[\\]{}\\-_/@#$%^&*+=<>?",
+      "blocked_patterns": [
+        "<script[^>]*>.*?</script>",
+        "javascript:",
+        "vbscript:",
+        "onload\\s*=",
+        "onerror\\s*=",
+        "onclick\\s*=",
+        "eval\\s*\\(",
+        "expression\\s*\\(",
+        "SELECT.*FROM.*WHERE",
+        "INSERT.*INTO.*VALUES",
+        "UPDATE.*SET.*WHERE",
+        "DELETE.*FROM.*WHERE",
+        "DROP.*TABLE",
+        "UNION.*SELECT",
+        "OR.*1=1",
+        "admin'--",
+        "1' OR '1'='1"
+      ],
+      "sanitize_html": true,
+      "escape_sql": true
+    },
+    
+    "threat_detection": {
+      "enabled": true,
+      "threshold": 0.7,
+      "semantic_analysis": {
+        "enabled": true,
+        "model_path": "models/security_model.pkl",
+        "confidence_threshold": 0.8
+      },
+      "pattern_matching": {
+        "enabled": true,
+        "signature_update_interval": 3600
+      },
+      "behavioral_analysis": {
+        "enabled": true,
+        "anomaly_threshold": 0.85,
+        "learning_period_days": 7
+      }
+    },
+    
+    "rate_limiting": {
+      "enabled": true,
+      "default_limit": 100,
+      "window_size": 3600,
+      "burst_limit": 10,
+      "per_ip_limits": {
+        "default": 50,
+        "api": 1000,
+        "web": 30
+      },
+      "blacklist_duration": 3600
+    },
+    
+    "access_control": {
+      "enabled": true,
+      "authentication_required": true,
+      "session_timeout": 3600,
+      "max_sessions_per_user": 5,
+      "ip_whitelist": [],
+      "ip_blacklist": [],
+      "user_agent_filtering": true
+    },
+    
+    "data_protection": {
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES-256-GCM",
+        "key_rotation_interval": 86400,
+        "data_at_rest": true,
+        "data_in_transit": true
+      },
+      "data_retention": {
+        "user_data_days": 365,
+        "security_logs_days": 90,
+        "audit_logs_days": 2555
+      },
+      "privacy": {
+        "pii_detection": true,
+        "data_anonymization": true,
+        "consent_tracking": true
+      }
+    },
+    
+    "monitoring": {
+      "enabled": true,
+      "log_level": "INFO",
+      "alerting": {
+        "enabled": true,
+        "email": {
+          "enabled": false,
+          "smtp_server": "smtp.gmail.com",
+          "smtp_port": 587,
+          "username": "",
+          "password": ""
+        },
+        "webhook": {
+          "enabled": true,
+          "url": "http://localhost:8080/security/alerts",
+          "timeout": 5
+        },
+        "slack": {
+          "enabled": false,
+          "webhook_url": ""
+        }
+      },
+      "metrics": {
+        "enabled": true,
+        "collection_interval": 60,
+        "retention_days": 30,
+        "export_format": "json"
+      }
+    },
+    
+    "compliance": {
+      "gdpr": {
+        "enabled": true,
+        "data_processing_lawful_basis": "consent",
+        "data_controller": "Memoria AI",
+        "dpo_contact": "privacy@memoria.ai"
+      },
+      "ccpa": {
+        "enabled": true,
+        "business_name": "Memoria AI",
+        "privacy_policy_url": "https://memoria.ai/privacy"
+      },
+      "hipaa": {
+        "enabled": false,
+        "covered_entity": false
+      },
+      "soc2": {
+        "enabled": true,
+        "type": "Type II",
+        "auditor": "External Security Firm"
+      }
+    },
+    
+    "incident_response": {
+      "enabled": true,
+      "escalation_levels": {
+        "low": {
+          "threshold": 0.3,
+          "action": "log",
+          "notification": "security_team"
+        },
+        "medium": {
+          "threshold": 0.6,
+          "action": "block_and_log",
+          "notification": "security_team_and_admin"
+        },
+        "high": {
+          "threshold": 0.8,
+          "action": "block_and_alert",
+          "notification": "all_admins"
+        },
+        "critical": {
+          "threshold": 0.9,
+          "action": "emergency_shutdown",
+          "notification": "emergency_contacts"
+        }
+      },
+      "auto_response": {
+        "enabled": true,
+        "quarantine_duration": 3600,
+        "auto_block_threshold": 5
+      }
+    }
+  }
+}
