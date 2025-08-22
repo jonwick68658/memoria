@@ -1,6 +1,6 @@
 # Memoria 🧠
 
-**AI Memory SDK with Async Processing** - Production-ready memory system for LLM applications with 10-50x performance improvements and enterprise-grade security.
+**AI Memory SDK** - Production-ready memory system for LLM applications with 10-50x performance improvements and enterprise-grade security. Now available as a simple pip package for easy integration.
 
 ## What is Memoria?
 
@@ -13,7 +13,38 @@ Memoria is a **persistent memory system** that gives your LLM applications the a
 - **Enterprise Security**: Multi-layered security with threat detection and input validation
 - **Scalable Architecture**: Handles 1000+ concurrent users with Redis + PostgreSQL
 
-## 🚀 Quick Start (2 minutes)
+## 🚀 Quick Start (30 seconds)
+
+### Option 1: Simple Pip Installation (Recommended for Developers)
+```bash
+pip install memoria-ai
+```
+
+### Basic Usage Example
+```python
+from memoria import MemoriaClient, MemoriaConfig
+
+# Configure with your API key and database
+config = MemoriaConfig(
+    openai_api_key="sk-your-api-key-here",
+    database_url="sqlite:///memoria.db"  # Use SQLite for simplicity
+)
+
+# Create client
+client = MemoriaClient.create(config)
+
+# Use memoria in your LLM application
+response = client.chat(
+    user_id="user_123",
+    conversation_id="conv_456",
+    question="I love Python programming and machine learning"
+)
+
+print("Assistant:", response.assistant_text)
+print("Memory citations:", response.cited_ids)
+```
+
+### Option 2: Docker Setup (For Full Service Deployment)
 
 ### 1. Get Your API Key
 - **OpenAI**: Get key from [OpenAI Dashboard](https://platform.openai.com/api-keys)
@@ -47,7 +78,33 @@ docker compose up -d
 - **Docs**: http://localhost:8000/docs
 - **Monitoring**: http://localhost:5555 (Flower dashboard)
 
-## 🎯 How Developers Use Memoria
+## 🎯 Super Simple Integration
+
+Memoria is designed for **easy integration** into any LLM platform. Developers can add advanced memory capabilities with just a few lines of code:
+
+```python
+# Install: pip install memoria-ai
+from memoria import MemoriaClient, MemoriaConfig
+
+# Configure with your settings
+config = MemoriaConfig(
+    openai_api_key="your-api-key",
+    database_url="sqlite:///memoria.db"  # SQLite for development
+)
+
+# Create client and start using memory
+client = MemoriaClient.create(config)
+response = client.chat("user123", "conv456", "Hello, I love Python!")
+```
+
+### Key Integration Benefits:
+- **No complex setup** - Just pip install and configure
+- **Multiple database options** - SQLite, PostgreSQL, or your own database
+- **Per-user memory isolation** - Each user gets their own memory space
+- **Automatic async processing** - Background memory processing included
+- **Enterprise security** - Built-in security and validation
+
+## 🎯 Advanced Usage Patterns
 
 ### Basic Integration Pattern
 
@@ -70,7 +127,7 @@ Direct Python integration for Python-based applications.
 #### Method 3: Docker Service
 Run as a standalone service that your application connects to.
 
-## 🔗 Complete Integration Guide
+## 🔗 Complete Integration Guide (Optional)
 
 ### REST API Integration (Any Language)
 
@@ -327,7 +384,7 @@ Access real-time monitoring:
 - **Task Queue**: http://localhost:5555 (Flower)
 - **Metrics**: http://localhost:8000/metrics (Prometheus)
 
-## 🛠️ Development
+## 🛠️ Advanced Development & Deployment
 
 ### Local Development (without Docker)
 ```bash

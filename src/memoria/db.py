@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import psycopg
-from psycopg_pool import ConnectionPool
+from psycopg.pool import ConnectionPool
 from pgvector.psycopg import register_vector
 
-from .config import settings
+from .config import settings, MemoriaConfig
 
 logger = logging.getLogger("memoria.db")
 logger.setLevel(settings.log_level)
@@ -21,20 +21,23 @@ class DB:
         self.pool = pool
 
     @classmethod
-    def create(cls) -> "DB":
+    def create(cls, config: Optional[MemoriaConfig] = None) -> "DB":
         """Factory that also runs migrations and registers pgvector adapter."""
+        config = config or MemoriaConfig.from_env()
+        
         def configure(conn: psycopg.Connection) -> None:
             conn.autocommit = True
             register_vector(conn)
 
-        pool = ConnectionPool(conninfo=settings.database_url, configure=configure, kwargs={"autocommit": True})
+        pool = ConnectionPool(conninfo=config.database_url, configure=configure, kwargs={"autocommit": True})
         db = cls(pool)
         db.run_migrations()
         return db
 
     # ---------- migrations ----------
     def run_migrations(self) -> None:
-        migrations_dir = Path("/app/db/migrations")
+        # Use relative path for migrations from the package directory
+        migrations_dir = Path(__file__).parent.parent.parent / "db" / "migrations"
         if not migrations_dir.exists():
             logger.warning("Migrations dir not found: %s", migrations_dir)
             return
@@ -253,3 +256,7 @@ class DB:
                 (user_id, limit),
             ).fetchall()
         return [{"id": r[0], "content": r[1], "created_at": r[2]} for r in rows]
+
+    def get_memories(self, user_id: str, conversation_id: Optional[str] = None, limit: int = 100) -> List[dict[str, Any]]:
+        """Get memories for a user, optionally filtered by conversation."""
+        return self.get_recent_memories(user_id, conversation_id, limit)

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
-from .config import settings
+from .config import settings, MemoriaConfig
 from .db import DB
 from .llm import LLMGateway, EmbeddingClient
 from .retrieval import build_context
@@ -25,10 +25,22 @@ class AssistantResponse(BaseModel):
 class MemoriaClient:
     db: DB
     llm: LLMGateway
+    config: MemoriaConfig
 
     @classmethod
-    def create(cls) -> "MemoriaClient":
-        return cls(db=DB.create(), llm=LLMGateway())
+    def create(cls, config: Optional[MemoriaConfig] = None) -> "MemoriaClient":
+        """Create a MemoriaClient instance with optional configuration.
+        
+        Args:
+            config: MemoriaConfig instance. If None, uses environment variables.
+            
+        Returns:
+            MemoriaClient instance
+        """
+        if config is None:
+            config = MemoriaConfig.from_env()
+        
+        return cls(db=DB.create(config), llm=LLMGateway(config), config=config)
 
     def chat(self, user_id: str, conversation_id: str, question: str) -> AssistantResponse:
         # Ensure conversation exists
@@ -94,7 +106,7 @@ Assistant:"""
 
     def correct(self, user_id: str, memory_id: str, replacement_text: str) -> None:
         self.db.mark_memory_bad(user_id, memory_id)
-        emb = EmbeddingClient().embed(replacement_text)
+        emb = EmbeddingClient(self.config).embed(replacement_text)
         self.db.add_memory(
             user_id=user_id,
             conversation_id=None,
@@ -106,5 +118,5 @@ Assistant:"""
             provenance={"source": "correction", "replaces": memory_id},
         )
 
-    def generate_insights(self, user_id: str, conversation_id: str | None = None) -> str:
+    def generate_insights(self, user_id: str, conversation_id: str | None = None) -> List[dict[str, Any]]:
         return generate_insights(self.db, self.llm, user_id, conversation_id)

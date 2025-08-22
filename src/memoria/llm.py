@@ -7,7 +7,7 @@ import httpx
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
-from .config import settings
+from .config import settings, MemoriaConfig
 
 logger = logging.getLogger("memoria.llm")
 logger.setLevel(settings.log_level)
@@ -20,36 +20,36 @@ def _normalize_model(provider: str, model: str) -> str:
     return model
 
 
-def _provider_headers(provider: str) -> Dict[str, str]:
+def _provider_headers(provider: str, config: MemoriaConfig) -> Dict[str, str]:
     if provider != "openrouter":
         return {}
     headers: Dict[str, str] = {}
-    if settings.openrouter_site_url:
-        headers["HTTP-Referer"] = settings.openrouter_site_url
-    if settings.openrouter_app_name:
-        headers["X-Title"] = settings.openrouter_app_name
+    if config.openrouter_site_url:
+        headers["HTTP-Referer"] = config.openrouter_site_url
+    if config.openrouter_app_name:
+        headers["X-Title"] = config.openrouter_app_name
     return headers
 
 
 class _Backend:
-    def __init__(self, provider: str):
+    def __init__(self, provider: str, config: MemoriaConfig):
         self.provider = provider
         if provider == "openrouter":
-            api_key = settings.openrouter_api_key
+            api_key = config.openrouter_api_key or ""
             base_url = "https://openrouter.ai/api/v1"
         else:
             provider = "openai"
-            api_key = settings.openai_api_key
+            api_key = config.openai_api_key or ""
             base_url = None
 
         timeout = httpx.Timeout(
-            timeout=settings.total_timeout,
-            connect=settings.connect_timeout,
-            read=settings.read_timeout,
-            write=settings.write_timeout,
+            timeout=config.total_timeout,
+            connect=config.connect_timeout,
+            read=config.read_timeout,
+            write=config.write_timeout,
         )
         self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
-        self.extra_headers = _provider_headers(provider)
+        self.extra_headers = _provider_headers(provider, config)
 
     def chat(self, model: str, system_prompt: str, user_prompt: str, *, max_tokens: int, temperature: float) -> str:
         model = _normalize_model(self.provider, model)
@@ -76,17 +76,18 @@ class _Backend:
 
 
 class LLMGateway:
-    def __init__(self, providers: Optional[List[str]] = None, model: Optional[str] = None):
-        providers = providers or settings.providers
-        self.model = model or settings.llm_model
+    def __init__(self, config: Optional[MemoriaConfig] = None):
+        config = config or MemoriaConfig.from_env()
+        self.config = config
+        self.model = config.llm_model
 
         # Build backends for available providers in order
         self.backends: List[_Backend] = []
-        for p in providers:
-            if p == "openai" and settings.openai_api_key:
-                self.backends.append(_Backend("openai"))
-            elif p == "openrouter" and settings.openrouter_api_key:
-                self.backends.append(_Backend("openrouter"))
+        for p in config.providers:
+            if p == "openai" and config.openai_api_key:
+                self.backends.append(_Backend("openai", config))
+            elif p == "openrouter" and config.openrouter_api_key:
+                self.backends.append(_Backend("openrouter", config))
 
         if not self.backends:
             raise RuntimeError("No usable LLM providers configured")
@@ -117,15 +118,16 @@ class LLMGateway:
 
 
 class EmbeddingClient:
-    def __init__(self, providers: Optional[List[str]] = None, model: Optional[str] = None):
-        providers = providers or settings.providers
-        self.model = model or settings.embedding_model
+    def __init__(self, config: Optional[MemoriaConfig] = None):
+        config = config or MemoriaConfig.from_env()
+        self.config = config
+        self.model = config.embedding_model
         self.backends: List[_Backend] = []
-        for p in providers:
-            if p == "openai" and settings.openai_api_key:
-                self.backends.append(_Backend("openai"))
-            elif p == "openrouter" and settings.openrouter_api_key:
-                self.backends.append(_Backend("openrouter"))
+        for p in config.providers:
+            if p == "openai" and config.openai_api_key:
+                self.backends.append(_Backend("openai", config))
+            elif p == "openrouter" and config.openrouter_api_key:
+                self.backends.append(_Backend("openrouter", config))
         if not self.backends:
             raise RuntimeError("No usable embedding providers configured")
 

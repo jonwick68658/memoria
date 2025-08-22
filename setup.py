@@ -93,6 +93,8 @@ setup(
         "typer>=0.9.0",
         "click>=8.1.0",
         "jinja2>=3.1.0",
+        "psycopg[binary]>=3.1.0",
+        "pgvector>=0.2.0",
     ],
     extras_require={
         "dev": [
