@@ -118,18 +118,18 @@ Memoria works by **augmenting your existing LLM** with persistent memory. Here's
 
 ### Integration Methods
 
-#### Method 1: REST API Integration (Recommended)
-Perfect for any language/platform that can make HTTP requests.
+#### Method 1: Python SDK (Recommended for Python Apps)
+Direct Python integration - just `pip install memoria-ai` and start coding.
 
-#### Method 2: Python SDK Integration
-Direct Python integration for Python-based applications.
+#### Method 2: REST API (For Other Languages)
+HTTP endpoints for JavaScript, Go, Ruby, and any language that can make HTTP requests.
 
-#### Method 3: Docker Service
+#### Method 3: Docker Service (For Full Deployment)
 Run as a standalone service that your application connects to.
 
-## 🔗 Complete Integration Guide (Optional)
+## 🔗 REST API Integration (For Non-Python Languages)
 
-### REST API Integration (Any Language)
+### REST API Endpoints (For JavaScript, Go, Ruby, etc.)
 
 #### 1. Submit Chat for Processing
 ```bash
@@ -167,120 +167,8 @@ curl -X POST http://localhost:8000/insights/generate/async \
   -d '{"conversation_id": "conv_123"}'
 ```
 
-### Python Integration Example
 
-#### Installation
-```bash
-pip install requests
-```
-
-#### Complete Integration Code
-```python
-import requests
-import time
-import json
-
-class MemoriaClient:
-    def __init__(self, api_key, base_url="http://localhost:8000"):
-        self.api_key = api_key
-        self.base_url = base_url
-        self.headers = {
-            "X-Api-Key": api_key,
-            "Content-Type": "application/json"
-        }
-    
-    def chat_with_memory(self, user_id, conversation_id, user_message):
-        """
-        Complete chat flow with memory integration
-        
-        Args:
-            user_id: Unique identifier for the user
-            conversation_id: Unique identifier for the conversation
-            user_message: The user's message
-            
-        Returns:
-            dict: Contains assistant response and memory citations
-        """
-        # Submit chat for async processing
-        task = self._submit_chat_async(user_id, conversation_id, user_message)
-        
-        # Poll for completion
-        while True:
-            status = self._get_task_status(task["task_id"])
-            if status["status"] == "completed":
-                return status["result"]
-            elif status["status"] == "failed":
-                raise Exception(f"Task failed: {status.get('error', 'Unknown error')}")
-            time.sleep(0.5)  # Poll every 500ms
-    
-    def _submit_chat_async(self, user_id, conversation_id, message):
-        """Submit chat for async processing"""
-        response = requests.post(
-            f"{self.base_url}/chat/async",
-            headers={**self.headers, "X-User-Id": user_id},
-            json={
-                "conversation_id": conversation_id,
-                "message": {"content": message}
-            }
-        )
-        return response.json()
-    
-    def _get_task_status(self, task_id):
-        """Check async task status"""
-        response = requests.get(
-            f"{self.base_url}/tasks/{task_id}",
-            headers=self.headers
-        )
-        return response.json()
-    
-    def get_user_memories(self, user_id):
-        """Get all memories for a user"""
-        response = requests.get(
-            f"{self.base_url}/memories",
-            headers={**self.headers, "X-User-Id": user_id}
-        )
-        return response.json()
-    
-    def correct_memory(self, user_id, memory_id, corrected_text):
-        """Correct an existing memory"""
-        response = requests.post(
-            f"{self.base_url}/correction/async",
-            headers={**self.headers, "X-User-Id": user_id},
-            json={
-                "memory_id": memory_id,
-                "replacement_text": corrected_text
-            }
-        )
-        return response.json()
-
-# Usage example in your LLM platform
-def integrate_with_your_llm():
-    # Initialize Memoria client
-    memoria = MemoriaClient("your-gateway-key")
-    
-    # Example conversation
-    user_id = "user_123"
-    conversation_id = "conv_456"
-    
-    # User sends a message
-    user_message = "I love Python programming and I'm learning machine learning"
-    
-    # Get response with memory context
-    response = memoria.chat_with_memory(user_id, conversation_id, user_message)
-    
-    print("Assistant:", response["assistant_text"])
-    print("Used memories:", response["cited_ids"])
-    
-    # Later, get all memories for this user
-    memories = memoria.get_user_memories(user_id)
-    print("User memories:", json.dumps(memories, indent=2))
-
-# Run the example
-if __name__ == "__main__":
-    integrate_with_your_llm()
-```
-
-### JavaScript/Node.js Integration
+### JavaScript/Node.js Integration (Using REST API)
 ```javascript
 const axios = require('axios');
 
