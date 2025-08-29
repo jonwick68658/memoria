@@ -17,7 +17,7 @@ Memoria is a **persistent memory system** that gives your LLM applications the a
 
 ### Option 1: Simple Pip Installation (Recommended for Developers)
 ```bash
-pip install memoria-ai
+pip install memoria
 ```
 
 ### Basic Usage Example
