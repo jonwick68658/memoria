@@ -38,8 +38,8 @@ setup(
     url="https://github.com/memoria-ai/memoria",
     project_urls={
         "Documentation": "https://docs.memoria.ai",
-        "Source": "https://github.com/memoria-ai/memoria",
-        "Tracker": "https://github.com/memoria-ai/memoria/issues",
+        "Source": "https://github.com/jonwick68658/memoria",
+        "Tracker": "https://github.com/jonwick68658/memoria/issues",
     },
     packages=find_packages(where="src"),
     package_dir={"": "src"},
