@@ -225,7 +225,23 @@ bot = MemoriaDiscordBot("your-api-key", intents=intents)
 bot.run("your-discord-token")
 ```
 
----
+### 4. Custom Embedding Provider
+```python
+# src/memoria/embeddings.py (Current structure)
+class EmbeddingProvider:
+    def get_embedding(self, text: str) -> List[float]:
+        # Default: OpenAI
+        return openai.Embedding.create(input=text, model="text-embedding-ada-002")["data"][0]["embedding"]
+
+# Developer's Custom Provider (What they'd implement)
+class LocalEmbeddingProvider(EmbeddingProvider):
+    def __init__(self, model_path: str):
+        self.model = SentenceTransformer(model_path)
+    
+    def get_embedding(self, text: str) -> List[float]:
+        return self.model.encode([text])[0].tolist()
+```
+
 
 ## 📊 Analytics & Business Intelligence
 

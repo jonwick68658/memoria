@@ -195,6 +195,7 @@ curl http://localhost:8000/insights \
 - [ ] Add error handling
 - [ ] Add webhook support (optional)
 - [ ] Monitor response times
+- [ ] **Configure custom embedding provider** (see EXAMPLES.md)
 
 ---
 

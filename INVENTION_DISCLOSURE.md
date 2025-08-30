@@ -103,7 +103,7 @@ Memoria™ represents a breakthrough in AI memory systems, providing persistent,
 2. **LLM Analysis**: Structured prompt extracts durable memories
 3. **Confidence Filtering**: Only high-confidence memories (>0.6) are stored
 4. **Type Classification**: Memories categorized for optimal retrieval
-5. **Embedding Generation**: Vector embeddings created for semantic search
+5. **Embedding Generation**: Vector embeddings generated using a configurable provider (see EXAMPLES.md)
 6. **Database Storage**: Atomic storage with conflict resolution
 
 ### Retrieval Process

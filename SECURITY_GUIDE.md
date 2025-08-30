@@ -234,7 +234,7 @@ python scripts/security_monitor.py --analyze --timeframe=24h
 ## Compliance & Auditing
 
 ### Standards Compliance
-- **OWASP ASVS**: Level 3 compliance
+- **Data Privacy**: All user data stays within your infrastructure when using self-hosted embeddings (see EXAMPLES.md).
 - **NIST Cybersecurity Framework**: Implemented
 - **ISO 27001**: Security controls
 - **SOC 2**: Type II ready
