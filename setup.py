@@ -40,7 +40,6 @@ setup(
         "Documentation": "https://docs.memoria.ai",
         "Source": "https://github.com/memoria-ai/memoria",
         "Tracker": "https://github.com/memoria-ai/memoria/issues",
-        "Commercial Licensing": "mailto:team@memoria.ai",
     },
     packages=find_packages(where="src"),
     package_dir={"": "src"},
