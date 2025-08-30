@@ -36,6 +36,9 @@ class SecurityConfig:
     log_file: str = "logs/security.log"
     max_log_size_mb: int = 50
     log_retention_days: int = 7
+    enable_security_logging: bool = True
+    health_check_interval: int = 60
+    max_requests_per_minute: int = 100
     
     # Alerting
     enable_alerts: bool = True
@@ -50,12 +53,12 @@ class SecurityConfig:
     max_concurrent_requests: int = 100
     
     # Input validation configuration
-    input_validation: Dict[str, Any] = None
+    input_validation: Dict[str, Any] = {}
     
     # Template-specific settings
-    writer_config: Dict[str, Any] = None
-    summarizer_config: Dict[str, Any] = None
-    patterns_config: Dict[str, Any] = None
+    writer_config: Dict[str, Any] = {}
+    summarizer_config: Dict[str, Any] = {}
+    patterns_config: Dict[str, Any] = {}
     
     def __post_init__(self):
         """Initialize template-specific configurations."""
@@ -226,7 +229,7 @@ ENVIRONMENT_CONFIGS = {
     )
 }
 
-def get_environment_config(environment: str = None) -> SecurityConfig:
+def get_environment_config(environment: Optional[str] = None) -> SecurityConfig:
     """Get configuration for specific environment."""
     if environment is None:
         environment = os.getenv('ENVIRONMENT', 'development').lower()

@@ -1,14 +1,12 @@
 """
 Threat pattern database and signature management
 """
-
 import json
 import hashlib
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import logging
-
 
 @dataclass
 class ThreatSignature:
@@ -24,7 +22,7 @@ class ThreatSignature:
     updated_at: str
     confidence: float = 0.8
     enabled: bool = True
-    tags: List[str] = None
+    tags: List[str] = []
     
     def __post_init__(self):
         if self.tags is None:
@@ -38,7 +36,6 @@ class ThreatSignature:
     def from_dict(cls, data: Dict[str, Any]) -> 'ThreatSignature':
         """Create from dictionary"""
         return cls(**data)
-
 
 class ThreatDatabase:
     """Centralized threat signature database"""
@@ -346,11 +343,13 @@ class ThreatDatabase:
         """Generate unique hash for signature"""
         content = f"{signature.name}{signature.pattern}{signature.threat_type}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
-
+    
+    def get_all_signatures(self) -> List[ThreatSignature]:
+        """Return all threat signatures in the database."""
+        return list(self.signatures.values())
 
 # Global threat database instance
 threat_db = ThreatDatabase()
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

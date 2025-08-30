@@ -1,3 +1,18 @@
+# Copyright (C) 2025 neuroLM
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 from __future__ import annotations
 
 import logging
@@ -13,8 +28,8 @@ from pydantic import BaseModel, Field
 
 from memoria.config import settings, validate_settings
 from memoria.sdk import MemoriaClient
-from app.tasks import process_memory_async, generate_insights_async, correct_memory_async
-from app.celery_app import celery_app
+# Import Celery tasks properly - tasks must be accessed through the Celery app instance
+from app.celery_app import celery  # Corrected from celery_app to celery
 from app.metrics import record_api_call, record_task_submission
 
 logger = logging.getLogger("memoria.app")
@@ -161,10 +176,9 @@ def chat_async(
 ):
     """Submit chat processing as an async task"""
     try:
-        task = process_memory_async.delay(
-            user_id=user_id,
-            conversation_id=req.conversation_id,
-            question=req.message.content
+        task = celery.send_task(
+            'app.tasks.process_memory_async',
+            args=[user_id, req.conversation_id, req.message.content]
         )
         record_task_submission("chat_async")
         return AsyncTaskResponse(
@@ -185,10 +199,9 @@ def correction_async(
 ):
     """Submit memory correction as an async task"""
     try:
-        task = correct_memory_async.delay(
-            user_id=user_id,
-            memory_id=req.memory_id,
-            replacement_text=req.replacement_text
+        task = celery.send_task(
+            'app.tasks.correct_memory_async',
+            args=[user_id, req.memory_id, req.replacement_text]
         )
         record_task_submission("correction_async")
         return AsyncTaskResponse(
@@ -209,9 +222,9 @@ def gen_insights_async(
 ):
     """Submit insights generation as an async task"""
     try:
-        task = generate_insights_async.delay(
-            user_id=user_id,
-            conversation_id=conversation_id
+        task = celery.send_task(
+            'app.tasks.generate_insights_async',
+            args=[user_id, conversation_id]
         )
         record_task_submission("insights_async")
         return AsyncTaskResponse(
@@ -232,7 +245,7 @@ def get_task_status(
 ):
     """Get the status and result of an async task"""
     try:
-        task = celery_app.AsyncResult(task_id)
+        task = celery.AsyncResult(task_id)
         
         status_map = {
             "PENDING": "pending",
@@ -323,8 +336,7 @@ def healthz_detailed():
             conn.execute("SELECT 1").fetchone()
         
         # Check Celery
-        from celery import current_app
-        inspect = current_app.control.inspect()
+        inspect = celery.control.inspect()
         active_workers = inspect.active() or {}
         
         return {

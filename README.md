@@ -1,4 +1,4 @@
-# Memoria 🧠
+# Memoria™ 🧠
 
 **AI Memory SDK** - Production-ready memory system for LLM applications with 10-50x performance improvements and enterprise-grade security. Now available as a simple pip package for easy integration.
 
@@ -355,7 +355,15 @@ Full API documentation available at:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+AGPL v3 License - see [LICENSE](LICENSE) file for details.
+
+**Commercial Licensing Available:**
+- 🎁 **Free commercial licenses for early adopters** - Contact us!
+- 💼 **Startup License**: $10K/year (companies under $1M revenue)
+- 🏢 **Enterprise License**: $100K/year (companies over $1M revenue)
+- 🤝 **OEM/Platform License**: Custom revenue sharing agreements
+
+For commercial licensing that allows proprietary use without AGPL obligations, contact: **team@memoria.ai**
 
 ---
 

@@ -1,3 +1,18 @@
+# Copyright (C) 2025 neuroLM
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 from __future__ import annotations
 
 import hashlib
@@ -41,23 +56,23 @@ def maybe_write_memories(
     """Extract and store memories from user text with security validation."""
     
     # Validate input through security pipeline
-    security_result = _security_pipeline.validate_input(user_text, context='writer_extraction')
+    security_result = _security_pipeline.process_input(user_text, context_type='writer_extraction')
     
     if not security_result.is_safe:
         # Log security violation and return empty list
-        _security_pipeline.log_security_event(
-            event_type='prompt_injection_blocked',
-            context='writer_extraction',
-            user_id=user_id,
-            conversation_id=conversation_id,
-            details=security_result.threats_found
+        # Note: Using basic logging since log_security_event doesn't exist
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Security violation in memory extraction - User: {user_id}, "
+            f"Conversation: {conversation_id}, Threats: {security_result.threat_types}"
         )
         return []
     
     # Sanitize template using template-specific sanitizer
     sanitized_prompt = _template_manager.sanitize_template(
-        'writer', 
-        EXTRACT_PROMPT, 
+        'writer',
+        EXTRACT_PROMPT,
         {'msg': user_text}
     )
     
@@ -88,14 +103,15 @@ def maybe_write_memories(
             continue
             
         # Validate extracted text for security
-        text_result = _security_pipeline.validate_input(text, context='writer_extracted_text')
+        text_result = _security_pipeline.process_input(text, context_type='writer_extracted_text')
         if not text_result.is_safe:
-            _security_pipeline.log_security_event(
-                event_type='extracted_text_security_violation',
-                context='writer_extraction',
-                user_id=user_id,
-                conversation_id=conversation_id,
-                details=text_result.threats_found
+            # Log security violation using basic logging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Extracted text security violation - User: {user_id}, "
+                f"Conversation: {conversation_id}, Text: {text[:50]}..., "
+                f"Threats: {text_result.threat_types}"
             )
             continue
             
@@ -127,12 +143,11 @@ def maybe_write_memories(
         mem_ids.append(mid)
     
     # Log successful memory extraction
-    _security_pipeline.log_security_event(
-        event_type='memory_extraction_success',
-        context='writer_extraction',
-        user_id=user_id,
-        conversation_id=conversation_id,
-        details={'memories_extracted': len(mem_ids)}
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Memory extraction successful - User: {user_id}, "
+        f"Conversation: {conversation_id}, Memories extracted: {len(mem_ids)}"
     )
     
     return mem_ids
