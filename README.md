@@ -83,7 +83,7 @@ docker compose up -d
 Memoria is designed for **easy integration** into any LLM platform. Developers can add advanced memory capabilities with just a few lines of code:
 
 ```python
-# Install: pip install memoria-ai
+# Install: pip install memoria
 from memoria import MemoriaClient, MemoriaConfig
 
 # Configure with your settings
@@ -119,7 +119,7 @@ Memoria works by **augmenting your existing LLM** with persistent memory. Here's
 ### Integration Methods
 
 #### Method 1: Python SDK (Recommended for Python Apps)
-Direct Python integration - just `pip install memoria-ai` and start coding.
+Direct Python integration - just `pip install memoria` and start coding.
 
 #### Method 2: REST API (For Other Languages)
 HTTP endpoints for JavaScript, Go, Ruby, and any language that can make HTTP requests.
