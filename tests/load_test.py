@@ -199,9 +199,11 @@ def on_test_stop(environment, **kwargs):
     print("\nLoad test completed!")
     print("Check the Locust web interface for detailed results")
 
-@events.request_success.add_listener
-def on_request_success(request_type, name, response_time, response_length, **kwargs):
+@events.request.add_listener
+def on_request(request_type, name, response_time, response_length, response, context, exception, **kwargs):
     """Log successful requests"""
+    if exception is not None:
+        return
     if "store" in name and response_time < 500:
         print(f"✅ Fast async response: {response_time:.2f}ms")
 

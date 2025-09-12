@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import psycopg
-from psycopg.pool import ConnectionPool
+from psycopg import ConnectionPool
 from pgvector.psycopg import register_vector
 
 from .config import settings, MemoriaConfig
