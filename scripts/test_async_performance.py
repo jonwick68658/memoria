@@ -120,7 +120,10 @@ class PerformanceTester:
                     errors += 1
                     logger.error(f"Async request failed: {result}")
                 else:
-                    response_time, task_id = result
+                    if isinstance(result, tuple) and len(result) == 2:
+                        response_time, task_id = result
+                    else:
+                        continue
                     response_times.append(response_time)
                     task_ids.append(task_id)
         
@@ -273,9 +276,9 @@ class PerformanceTester:
             comparison = {
                 "speedup_factor": speedup,
                 "response_time_improvement": response_time_improvement,
-                "throughput_increase": f"{((async['requests_per_second'] - sync['requests_per_second']) / sync['requests_per_second'] * 100):.1f}%",
-                "latency_reduction": f"{((sync['response_times_ms']['mean'] - async['response_times_ms']['mean']) / sync['response_times_ms']['mean'] * 100):.1f}%",
-                "winner": "async" if async["requests_per_second"] > sync["requests_per_second"] else "sync"
+                "throughput_increase": f"{((async_results['requests_per_second'] - sync['requests_per_second']) / sync['requests_per_second'] * 100):.1f}%",
+                "latency_reduction": f"{((sync['response_times_ms']['mean'] - async_results['response_times_ms']['mean']) / sync['response_times_ms']['mean'] * 100):.1f}%",
+                "winner": "async" if async_results["requests_per_second"] > sync["requests_per_second"] else "sync"
             }
             
             self.results["comparison"] = comparison
@@ -284,7 +287,7 @@ class PerformanceTester:
         
         return {}
     
-    def save_results(self, filename: str = None):
+    def save_results(self, filename: str = "performance_results.json"):
         """Save test results to file"""
         if filename is None:
             filename = f"performance_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
