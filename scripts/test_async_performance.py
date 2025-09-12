@@ -262,12 +262,12 @@ class PerformanceTester:
     def generate_comparison_report(self) -> Dict[str, Any]:
         """Generate detailed comparison report"""
         sync = self.results["sync"]
-        async = self.results["async"]
+        async_results = self.results["async"]
         
-        if sync and async:
-            speedup = sync["requests_per_second"] / async["requests_per_second"]
+        if sync and async_results:
+            speedup = sync["requests_per_second"] / async_results["requests_per_second"]
             response_time_improvement = (
-                sync["response_times_ms"]["mean"] / async["response_times_ms"]["mean"]
+                sync["response_times_ms"]["mean"] / async_results["response_times_ms"]["mean"]
             )
             
             comparison = {
@@ -312,12 +312,12 @@ class PerformanceTester:
             print(f"   P95 Response: {sync['response_times_ms']['p95']:.2f}ms")
         
         if self.results["async"]:
-            async = self.results["async"]
+            async_results = self.results["async"]
             print(f"\n⚡ ASYNC PERFORMANCE:")
-            print(f"   Requests: {async['successful_requests']}/{async['total_requests']}")
-            print(f"   Throughput: {async['requests_per_second']:.2f} req/s")
-            print(f"   Avg Response: {async['response_times_ms']['mean']:.2f}ms")
-            print(f"   P95 Response: {async['response_times_ms']['p95']:.2f}ms")
+            print(f"   Requests: {async_results['successful_requests']}/{async_results['total_requests']}")
+            print(f"   Throughput: {async_results['requests_per_second']:.2f} req/s")
+            print(f"   Avg Response: {async_results['response_times_ms']['mean']:.2f}ms")
+            print(f"   P95 Response: {async_results['response_times_ms']['p95']:.2f}ms")
         
         if self.results["comparison"]:
             comp = self.results["comparison"]
