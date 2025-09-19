@@ -1,150 +1,138 @@
+from __future__ import annotations
+
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from celery import current_task
 from app.celery_app import celery
-from src.memoria.writer import MemoryWriter
-from src.memoria.embeddings import EmbeddingService
-from src.memoria.config import Config
-import logging
-from typing import Dict, Any, Optional
+from src.memoria.sdk import MemoriaClient
+from src.memoria.llm import EmbeddingClient
 
 logger = logging.getLogger(__name__)
 
+
 @celery.task(bind=True, max_retries=3)
-def process_memory_async(self, user_id: str, conversation_id: str, message_content: str, metadata: Optional[Dict[str, Any]] = None):
-    """Process memory extraction and storage asynchronously"""
+def process_memory_async(
+    self, user_id: str, conversation_id: str, message_content: str, metadata: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Async chat processing using MemoriaClient.
+
+    This mirrors the synchronous chat flow:
+    - ensures conversation
+    - stores user message
+    - extracts/writes memories (with security)
+    - builds context and calls LLM
+    - stores assistant message
+    - updates rolling summary (best-effort)
+    """
     try:
-        logger.info(f"Processing memory for user {user_id}, conversation {conversation_id}")
-        
-        # Initialize services
-        writer = MemoryWriter()
-        embedding_service = EmbeddingService()
-        
-        # Extract memory
-        memory = writer.extract_memory(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            message_content=message_content,
-            metadata=metadata or {}
-        )
-        
-        if not memory:
-            logger.warning(f"No memory extracted for user {user_id}")
-            return {"status": "no_memory", "message": "No memory extracted"}
-        
-        # Generate embedding
-        embedding = embedding_service.generate_embedding(memory.content)
-        
-        # Store in database
-        memory_id = writer.store_memory(memory, embedding)
-        
-        # Update user summary
-        writer.update_user_summary(user_id)
-        
-        logger.info(f"Memory processed successfully: {memory_id}")
-        return {
-            "status": "success", 
-            "memory_id": memory_id,
-            "memory_type": memory.memory_type,
-            "content_preview": memory.content[:100] + "..." if len(memory.content) > 100 else memory.content
+        logger.info("Processing async chat user_id=%s conv_id=%s", user_id, conversation_id)
+
+        client = MemoriaClient.create()
+        resp = client.chat(user_id=user_id, conversation_id=conversation_id, question=message_content)
+
+        result: Dict[str, Any] = {
+            "status": "success",
+            "assistant_text": resp.assistant_text,
+            "cited_ids": resp.cited_ids,
+            "assistant_message_id": resp.assistant_message_id,
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "metadata": metadata or {},
         }
-        
+        logger.info("Async chat completed user_id=%s conv_id=%s msg_id=%s", user_id, conversation_id, resp.assistant_message_id)
+        return result
+
     except Exception as exc:
-        logger.error(f"Memory processing failed: {str(exc)}", exc_info=True)
+        logger.exception("process_memory_async failed user_id=%s conv_id=%s: %s", user_id, conversation_id, exc)
         # Exponential backoff: 60s, 120s, 240s
         countdown = 60 * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
 
+
 @celery.task(bind=True, max_retries=3)
-def correct_memory_async(self, user_id: str, memory_id: str, replacement_text: str):
-    """Correct a memory asynchronously"""
+def correct_memory_async(self, user_id: str, memory_id: str, replacement_text: str) -> Dict[str, Any]:
+    """Mark memory as bad and write a corrected replacement."""
     try:
-        logger.info(f"Correcting memory {memory_id} for user {user_id}")
-        
-        # Initialize services
-        writer = MemoryWriter()
-        embedding_service = EmbeddingService()
-        
-        # Mark memory as bad
-        writer.db.mark_memory_bad(user_id, memory_id)
-        
-        # Generate embedding for replacement text
-        embedding = embedding_service.generate_embedding(replacement_text)
-        
-        # Store corrected memory
-        new_memory_id = writer.db.add_memory(
-            user_id=user_id,
-            conversation_id=None,
-            text=replacement_text,
-            embedding=embedding,
-            type_="correction",
-            importance=0.6,
-            confidence=0.9,
-            provenance={"source": "correction", "replaces": memory_id},
-        )
-        
-        logger.info(f"Memory corrected successfully: {new_memory_id}")
+        logger.info("Correcting memory user_id=%s memory_id=%s", user_id, memory_id)
+        client = MemoriaClient.create()
+        client.correct(user_id=user_id, memory_id=memory_id, replacement_text=replacement_text)
+
         return {
             "status": "success",
+            "user_id": user_id,
             "original_memory_id": memory_id,
-            "new_memory_id": new_memory_id,
-            "content_preview": replacement_text[:100] + "..." if len(replacement_text) > 100 else replacement_text
+            "replacement_preview": (replacement_text[:100] + "...") if len(replacement_text) > 100 else replacement_text,
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
     except Exception as exc:
-        logger.error(f"Memory correction failed: {str(exc)}", exc_info=True)
-        # Exponential backoff: 60s, 120s, 240s
+        logger.exception("correct_memory_async failed user_id=%s memory_id=%s: %s", user_id, memory_id, exc)
         countdown = 60 * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
 
+
 @celery.task(bind=True, max_retries=2)
-def batch_process_embeddings(self, memory_batch: list):
-    """Process multiple embeddings in batch for efficiency"""
+def batch_process_embeddings(self, memory_batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Generate embeddings for a batch of memory payloads.
+
+    memory_batch: list of dicts with keys:
+      - id: memory id (string)
+      - content: text to embed (string)
+    """
     try:
-        embedding_service = EmbeddingService()
-        results = []
-        
-        for memory_data in memory_batch:
-            embedding = embedding_service.generate_embedding(
-                memory_data['content']
-            )
-            results.append({
-                'memory_id': memory_data['id'],
-                'embedding': embedding
-            })
-        
+        logger.info("Batch embedding started count=%d", len(memory_batch))
+        embedding_client = EmbeddingClient()
+        results: List[Dict[str, Any]] = []
+
+        for item in memory_batch:
+            text = str(item.get("content", ""))
+            mid = str(item.get("id", ""))
+            emb = embedding_client.embed(text)
+            results.append({"memory_id": mid, "embedding": emb})
+
         return {
-            "status": "success", 
+            "status": "success",
             "processed": len(results),
-            "results": results
+            "results": results,
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
     except Exception as exc:
-        logger.error(f"Batch processing failed: {str(exc)}", exc_info=True)
+        logger.exception("batch_process_embeddings failed: %s", exc)
         raise self.retry(exc=exc, countdown=120)
 
-@celery.task(bind=True)
-def update_user_summary_async(self, user_id: str):
-    """Update user summary asynchronously"""
+
+@celery.task(bind=True, max_retries=3)
+def generate_insights_async(self, user_id: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
+    """Generate insights asynchronously for a user (optionally scoped to a conversation)."""
     try:
-        writer = MemoryWriter()
-        writer.update_user_summary(user_id)
-        return {"status": "success", "user_id": user_id}
-        
+        logger.info("Generating insights async user_id=%s conv_id=%s", user_id, conversation_id)
+        client = MemoriaClient.create()
+        insights = client.generate_insights(user_id=user_id, conversation_id=conversation_id)
+
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "insights_count": len(insights),
+            "insights": insights,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
     except Exception as exc:
-        logger.error(f"Summary update failed: {str(exc)}", exc_info=True)
-        raise self.retry(exc=exc, countdown=300)
+        logger.exception("generate_insights_async failed user_id=%s conv_id=%s: %s", user_id, conversation_id, exc)
+        countdown = 60 * (2 ** self.request.retries)
+        raise self.retry(exc=exc, countdown=countdown)
+
 
 @celery.task(bind=True)
-def generate_insights_async(self, user_id: str):
-    """Generate insights asynchronously"""
-    try:
-        writer = MemoryWriter()
-        insights = writer.generate_insights(user_id)
-        return {
-            "status": "success", 
-            "user_id": user_id,
-            "insights_count": len(insights)
-        }
-        
-    except Exception as exc:
-        logger.error(f"Insight generation failed: {str(exc)}", exc_info=True)
-        raise self.retry(exc=exc, countdown=600)
+def update_user_summary_async(self, user_id: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
+    """Placeholder: summaries are updated inline with chat. This task is a no-op for compatibility."""
+    logger.info("update_user_summary_async noop user_id=%s conv_id=%s", user_id, conversation_id)
+    return {
+        "status": "success",
+        "message": "Summary is updated during chat; no-op task executed.",
+        "user_id": user_id,
+        "conversation_id": conversation_id,
+        "timestamp": datetime.utcnow().isoformat(),
+    }

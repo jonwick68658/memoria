@@ -285,7 +285,7 @@ BACKUP_DECRYPT=true ./scripts/restore.sh --restore
 - **Documentation**: Check `docs/` directory
 - **Logs**: Review `logs/upgrade.log`
 - **Community**: GitHub issues and discussions
-- **Professional**: Contact support@memoria-ai.com
+- **Professional**: Contact support@memoria.ai
 
 ## Best Practices
 

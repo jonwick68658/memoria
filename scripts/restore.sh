@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_NAME="memoria-ai"
+PROJECT_NAME="memoria"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 RESTORE_LOG="${RESTORE_LOG:-./logs/restore.log}"
 RESTORE_TIMEOUT="${RESTORE_TIMEOUT:-3600}"

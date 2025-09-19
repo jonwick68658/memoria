@@ -67,7 +67,11 @@ def update_rolling_summary(
                 context='summarizer_message',
                 user_id=user_id,
                 conversation_id=conversation_id,
-                details=msg_result.threats_found
+                details={
+                    'threat_types': getattr(msg_result, 'threat_types', []),
+                    'recommendations': getattr(msg_result, 'recommendations', []),
+                    'risk': getattr(msg_result, 'overall_risk_score', 1.0),
+                }
             )
             sanitized_messages.append({
                 'role': 'user',
@@ -86,7 +90,11 @@ def update_rolling_summary(
                 context='summarizer_existing',
                 user_id=user_id,
                 conversation_id=conversation_id,
-                details=existing_result.threats_found
+                details={
+                    'threat_types': getattr(existing_result, 'threat_types', []),
+                    'recommendations': getattr(existing_result, 'recommendations', []),
+                    'risk': getattr(existing_result, 'overall_risk_score', 1.0),
+                }
             )
             existing_text = "[EXISTING SUMMARY REDACTED - SECURITY VIOLATION]"
     
@@ -120,7 +128,11 @@ def update_rolling_summary(
             context='summarizer_output',
             user_id=user_id,
             conversation_id=conversation_id,
-            details=summary_result.threats_found
+            details={
+                'threat_types': getattr(summary_result, 'threat_types', []),
+                'recommendations': getattr(summary_result, 'recommendations', []),
+                'risk': getattr(summary_result, 'overall_risk_score', 1.0),
+            }
         )
         content = "[SUMMARY REDACTED - SECURITY VIOLATION]"
     

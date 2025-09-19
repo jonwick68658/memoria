@@ -40,7 +40,11 @@ class WriterTemplateSanitizer(TemplateSanitizer):
             self.security.log_security_event(
                 event_type='prompt_injection_blocked',
                 context='writer_extraction',
-                details=security_result.threats_found
+                details={
+                    'threat_types': getattr(security_result, 'threat_types', []),
+                    'recommendations': getattr(security_result, 'recommendations', []),
+                    'risk': getattr(security_result, 'overall_risk_score', 1.0),
+                }
             )
             # Return empty array for safe handling
             return "[]"

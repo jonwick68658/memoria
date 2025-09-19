@@ -29,7 +29,7 @@ log_error() {
 }
 
 # Configuration
-PROJECT_NAME="memoria-ai"
+PROJECT_NAME="memoria"
 STAGING_HOST="${STAGING_HOST:-staging.memoria.ai}"
 PRODUCTION_HOST="${PRODUCTION_HOST:-memoria.ai}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"

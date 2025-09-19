@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_NAME="memoria-ai"
+PROJECT_NAME="memoria"
 BACKUP_DIR="${BACKUP_DIR:-./backups/pre-upgrade}"
 UPGRADE_LOG="${UPGRADE_LOG:-./logs/upgrade.log}"
 ROLLBACK_ENABLED="${ROLLBACK_ENABLED:-true}"

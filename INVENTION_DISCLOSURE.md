@@ -3,7 +3,7 @@
 **Date**: August 30, 2025  
 **Inventors**: neuroLM Team  
 **Project**: Memoria™ AI Memory SDK  
-**Repository**: https://github.com/memoria-ai/memoria  
+**Repository**: https://github.com/jonwick68658/memoria  
 
 ## Executive Summary
 

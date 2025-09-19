@@ -231,6 +231,6 @@ DEFAULT_CONFIDENCE = 0.8
 ---
 
 **Corresponding Author**: team@memoria.ai  
-**Code Availability**: https://github.com/memoria-ai/memoria (AGPL v3)  
+**Code Availability**: https://github.com/jonwick68658/memoria (AGPL v3)  
 **License**: GNU Affero General Public License v3  
 **Commercial Licensing**: Available for proprietary use

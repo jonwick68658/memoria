@@ -85,7 +85,11 @@ def generate_insights(
                 context='patterns_memory',
                 user_id=user_id,
                 conversation_id=conversation_id or 'global',
-                details=text_result.threats_found
+                details={
+                    'threat_types': getattr(text_result, 'threat_types', []),
+                    'recommendations': getattr(text_result, 'recommendations', []),
+                    'risk': getattr(text_result, 'overall_risk_score', 1.0),
+                }
             )
             sanitized_memories.append({
                 'id': mem_id,
@@ -97,13 +101,8 @@ def generate_insights(
     if not sanitized_memories:
         return []
     
-    # Format memories safely for prompt
-    formatted_memories = "\n".join(
-        f"- [{m['id']}] {m['type']}: {m['text']}" for m in sanitized_memories
-    )
-    
-    # Use template sanitizer for final prompt
-    variables = {'mems': formatted_memories}
+    # Use template sanitizer for final prompt (pass raw list; sanitizer will format safely)
+    variables = {'mems': sanitized_memories}
     sanitized_prompt = _template_manager.sanitize_template('patterns', INSIGHT_PROMPT, variables)
     
     # Generate insights with security monitoring
@@ -182,14 +181,19 @@ def generate_insights(
         
         sanitized_insights.append(sanitized_insight)
     
-    # Store insights with security metadata
+    # Store insights as serialized JSON content
     for insight in sanitized_insights:
-        db.add_insight(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            insight=insight,
-            provenance={"source": "pattern_analysis"}
-        )
+        try:
+            db.insert_insight(user_id, json.dumps(insight))
+        except Exception as e:
+            # Log storage error via security pipeline for observability
+            _security_pipeline.log_security_event(
+                event_type='insight_storage_error',
+                context='patterns',
+                user_id=user_id,
+                conversation_id=conversation_id or 'global',
+                details={'error': str(e), 'insight_preview': str(insight)[:200]}
+            )
     
     # Log successful insight generation
     _security_pipeline.log_security_event(

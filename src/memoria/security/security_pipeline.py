@@ -4,6 +4,7 @@ Main security pipeline orchestrating all security checks
 
 import asyncio
 import logging
+import json
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -268,6 +269,74 @@ class SecurityPipeline:
             'enabled_signatures': len([s for s in self.threat_database.signatures.values() if s.enabled])
         }
 
+    # Compatibility shims expected by callers (writer/summarizer/templates)
+    def validate_input(self, text: str, context: Any = None) -> 'SecurityResult':
+        """Synchronous validation wrapper returning SecurityResult."""
+        # Normalize context into a dict for analyze()
+        if context is None:
+            context_dict: Dict[str, Any] = {}
+        elif isinstance(context, dict):
+            context_dict = context
+        else:
+            context_dict = {'context': str(context)}
+        try:
+            # Reuse the robust sync execution from process_input/analyze
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(lambda: asyncio.run(self.analyze(text, context_dict)))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self.analyze(text, context_dict))
+        except Exception as e:
+            self.logger.error(f"validate_input failed: {str(e)}")
+            return SecurityResult(
+                is_safe=False,
+                overall_risk_score=1.0,
+                checks=[],
+                threat_types=["system_error"],
+                recommendations=[f"validate_input failed: {str(e)}"],
+                processing_time_ms=0.0,
+                timestamp=datetime.utcnow().isoformat()
+            )
+
+    def log_security_event(
+        self,
+        event_type: str,
+        context: Any = "general",
+        user_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Compatibility logger for security events; forwards to monitor if available."""
+        payload = {
+            "event_type": event_type,
+            "context": context,
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "details": details or {},
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        # Try to forward to the global monitor; fall back to structured log
+        try:
+            from .security_monitor import get_security_monitor  # local import to avoid cycles
+            monitor = get_security_monitor()
+            # monitor expects details dict; include payload within details for richer info
+            monitor.report_security_event(
+                event_type=event_type,
+                details=payload,
+                severity='MEDIUM',
+                user_id=user_id,
+            )
+        except Exception:
+            self.logger.info(f"SECURITY_EVENT {json.dumps(payload, default=str)}")
+
     def process_input(self, text: str, context_type: str = "general") -> 'SecurityResult':
         """Synchronous wrapper for analyze() - maintains backward compatibility"""
         import asyncio
@@ -314,8 +383,16 @@ class SecurityPipeline:
 
     @property
     def is_valid(self) -> bool:
-        """Property for backward compatibility with tests"""
-        return self.is_safe
+        """Property for backward compatibility with tests on pipeline object.
+        Returns True when core components are initialized."""
+        try:
+            return (
+                self.input_validator is not None and
+                self.semantic_analyzer is not None and
+                self.threat_database is not None
+            )
+        except Exception:
+            return False
 
 
 # Global security pipeline instance

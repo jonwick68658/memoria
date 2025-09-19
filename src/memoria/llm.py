@@ -109,7 +109,7 @@ class LLMGateway:
         last_err = None
         for b in self.backends:
             try:
-                return b.chat(settings.llm_model, system_prompt, user_prompt, max_tokens=max_tokens, temperature=temperature)
+                return b.chat(self.model, system_prompt, user_prompt, max_tokens=max_tokens, temperature=temperature)
             except Exception as e:
                 last_err = e
                 logger.warning("Provider %s failed for chat; trying next. Error: %s", b.provider, e)
@@ -141,7 +141,7 @@ class EmbeddingClient:
         last_err = None
         for b in self.backends:
             try:
-                return b.embed(settings.embedding_model, text)
+                return b.embed(self.model, text)
             except Exception as e:
                 last_err = e
                 logger.warning("Provider %s failed for embedding; trying next. Error: %s", b.provider, e)
