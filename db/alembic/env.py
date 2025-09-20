@@ -1,14 +1,11 @@
-"""Alembic environment script for Memoria database migrations.
+from alembic import context
 
-This script is used to manage database migrations using Alembic.
-It configures the Alembic environment and provides hooks for pre/post migration operations.
-"""
+# Alembic revision identifiers
+revision = '001'
+down_revision = None
+branch_labels = None
+depends_on = None
 
-import os
-import sys
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config, pool
 from sqlalchemy import MetaData
 
 # Add the project root to sys.path so we can import MemoriaConfig
