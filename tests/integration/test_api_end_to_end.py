@@ -6,7 +6,7 @@ import asyncio
 import pytest
 from httpx import AsyncClient
 from testcontainers.postgres import PostgresContainer
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from memoria.config import MemoriaConfig
