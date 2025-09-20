@@ -1,12 +1,11 @@
+import os
+import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+
 from alembic import context
-
-# Alembic revision identifiers
-revision = '001'
-down_revision = None
-branch_labels = None
-depends_on = None
-
-from sqlalchemy import MetaData
 
 # Add the project root to sys.path so we can import MemoriaConfig
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
