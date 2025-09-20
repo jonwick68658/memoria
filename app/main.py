@@ -38,6 +38,8 @@ from slowapi.errors import RateLimitExceeded
 
 from app.dependencies import get_api_key, get_user_id, rate_limited
 
+from sqlalchemy import text
+
 logger = logging.getLogger("memoria.app")
 logger.setLevel(settings.log_level)
 
