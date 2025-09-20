@@ -26,9 +26,6 @@ import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
-import redis
-import json
-import hashlib
 
 
 def build_context(
@@ -45,6 +42,13 @@ def build_context(
     history_limit = history_limit or settings.history_limit
     memory_limit = memory_limit or settings.memory_limit
 
+    # Recent messages and summary (always fresh)
+    msgs = db.get_recent_messages(conversation_id, history_limit)
+    summary = db.get_summary(user_id, conversation_id)
+
+    # Embedding of the current user query
+    q_emb = EmbeddingClient().embed(question)
+
     # Redis client for caching
     r = redis.from_url(settings.redis_url)
 
@@ -53,36 +57,15 @@ def build_context(
 
     # Try to get cached results
     cached = r.get(cache_key)
+    if isinstance(cached, bytes):
+        cached = cached.decode('utf-8')
     if cached:
         logger.info("Cache hit for retrieval")
         vec, lex = json.loads(cached)
     else:
-        # Recent messages and summary (always fresh)
-        msgs = db.get_recent_messages(conversation_id, history_limit)
-        summary = db.get_summary(user_id, conversation_id)
-    
-        # Embedding of the current user query
-        q_emb = EmbeddingClient().embed(question)
-    
-        # Redis client for caching
-        r = redis.from_url(settings.redis_url)
-    
-        # Cache key for retrieval results
-        cache_key = f"retrieval:{user_id}:{conversation_id}:{hashlib.md5(question.encode()).hexdigest()}"
-    
-        # Try to get cached results
-        cached = r.get(cache_key)
-        if cached:
-            logger.info("Cache hit for retrieval")
-            vec, lex = json.loads(cached)
-        else:
-            # Vector + lexical retrieval
-            vec = db.vector_search(user_id, q_emb, top_k=top_k, conversation_id=conversation_id)
-            lex = db.lexical_search(user_id, question, top_k=top_k, conversation_id=conversation_id)
-    
-            # Cache the results
-            r.setex(cache_key, 3600, json.dumps([vec, lex]))  # TTL 1h
-            logger.info("Cached retrieval results")
+        # Vector + lexical retrieval
+        vec = db.vector_search(user_id, q_emb, top_k=top_k, conversation_id=conversation_id)
+        lex = db.lexical_search(user_id, question, top_k=top_k, conversation_id=conversation_id)
 
         # Cache the results
         r.setex(cache_key, 3600, json.dumps([vec, lex]))  # TTL 1h

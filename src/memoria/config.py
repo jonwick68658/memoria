@@ -42,7 +42,7 @@ class MemoriaConfig(BaseModel):
     
     # Async processing (optional)
     enable_async: bool = Field(default=False, description="Enable async processing with Celery")
-    redis_url: Optional[str] = Field(default=None, description="Redis URL for async processing")
+    redis_url: str = Field(default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379/0"))
     
     @classmethod
     def from_env(cls) -> "MemoriaConfig":
@@ -74,6 +74,7 @@ class MemoriaConfig(BaseModel):
 class LegacySettings(BaseModel):
     gateway_api_key: str = Field(default_factory=lambda: os.getenv("GATEWAY_API_KEY", "change-me"))
     database_url: str = Field(default_factory=lambda: os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/memoria"))
+    redis_url: str = Field(default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379/0"))
     providers: List[str] = Field(default_factory=lambda: [p.strip() for p in os.getenv("PROVIDERS", "openai,openrouter").split(",") if p.strip()])
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     openrouter_api_key: str = Field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))

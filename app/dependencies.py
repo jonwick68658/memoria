@@ -9,7 +9,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from memoria.config import settings
-from app.celery_app import redis_client  # Use existing Redis from Celery
+import redis
 
 # API Key dependency
 api_key_header = APIKeyHeader(name="X-Api-Key", auto_error=False)
@@ -33,7 +33,7 @@ async def get_user_id(x_user_id: str = Header(..., alias="X-User-Id")):
     return x_user_id
 
 # Rate limiter with Redis
-limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"], storage_uri="redis://localhost:6379")
+limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"], storage_uri=settings.redis_url)
 
 # Rate limit dependency
 from slowapi import _rate_limit_exceeded_handler
