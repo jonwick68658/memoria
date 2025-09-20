@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_memories_conversation_id ON memories(conversation
 CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at DESC);
 
 -- Vector index for efficient similarity search
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memories_embedding ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Comments
 COMMENT ON TABLE users IS 'Users table for authentication and management';
