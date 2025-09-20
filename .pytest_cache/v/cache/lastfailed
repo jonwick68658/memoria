@@ -1,0 +1,3 @@
+{
+  "tests/test_security_system_standalone.py::SecurityMetricsTest::test_metrics_collection": true
+}
