@@ -6,7 +6,7 @@ Provides centralized configuration management for all security components.
 import os
 import json
 from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 @dataclass
@@ -53,23 +53,23 @@ class SecurityConfig:
     max_concurrent_requests: int = 100
     
     # Input validation configuration
-    input_validation: Dict[str, Any] = {}
+    input_validation: Dict[str, Any] = field(default_factory=dict)
     
     # Template-specific settings
-    writer_config: Dict[str, Any] = {}
-    summarizer_config: Dict[str, Any] = {}
-    patterns_config: Dict[str, Any] = {}
+    writer_config: Dict[str, Any] = field(default_factory=dict)
+    summarizer_config: Dict[str, Any] = field(default_factory=dict)
+    patterns_config: Dict[str, Any] = field(default_factory=dict)
     
     def __post_init__(self):
         """Initialize template-specific configurations."""
-        if self.input_validation is None:
+        if not self.input_validation:
             self.input_validation = {
                 'enabled': True,
                 'max_length': 10000,
                 'allowed_patterns': []
             }
         
-        if self.writer_config is None:
+        if not self.writer_config:
             self.writer_config = {
                 "max_memories_per_extraction": 10,
                 "min_confidence_score": 0.5,
@@ -77,7 +77,7 @@ class SecurityConfig:
                 "sanitize_json": True
             }
         
-        if self.summarizer_config is None:
+        if not self.summarizer_config:
             self.summarizer_config = {
                 "max_summary_length": 1000,
                 "min_summary_length": 50,
@@ -85,7 +85,7 @@ class SecurityConfig:
                 "sanitize_output": True
             }
         
-        if self.patterns_config is None:
+        if not self.patterns_config:
             self.patterns_config = {
                 "max_insights": 20,
                 "min_confidence_score": 0.6,

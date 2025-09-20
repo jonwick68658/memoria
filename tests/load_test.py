@@ -21,39 +21,47 @@ class MemoriaUser(HttpUser):
         """Initialize user session"""
         self.user_id = f"user_{random.randint(1000, 9999)}"
         self.conversation_id = f"conv_{random.randint(1000, 9999)}"
+        self.api_key = "test-key"  # Assume test key for load testing
         
     @task(3)
-    def store_memory(self):
-        """Test memory storage endpoint"""
+    def chat_async(self):
+        """Test async chat endpoint"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
+        }
         message = {
-            "user_id": self.user_id,
             "conversation_id": self.conversation_id,
-            "message": f"Test message about topic {random.choice(['AI', 'ML', 'Data', 'Python', 'FastAPI'])}",
-            "timestamp": time.time()
+            "message": {"content": f"Test message about topic {random.choice(['AI', 'ML', 'Data', 'Python', 'FastAPI'])}"}
         }
         
         with self.client.post(
-            "/api/memory/store",
+            "/chat/async",
             json=message,
+            headers=headers,
             catch_response=True,
-            name="/api/memory/store"
+            name="/chat/async"
         ) as response:
-            if response.status_code == 202:
+            if response.status_code == 200:
                 response.success()
-                # Store task ID for later checking
                 task_data = response.json()
                 if "task_id" in task_data:
-                    self.check_task_status(task_data["task_id"])
+                    self.poll_task_status(task_data["task_id"], headers)
             else:
-                response.failure(f"Failed to store memory: {response.status_code}")
+                response.failure(f"Failed to submit chat: {response.status_code}")
     
     @task(2)
     def get_memories(self):
         """Test memory retrieval endpoint"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
+        }
         with self.client.get(
-            f"/api/memory/{self.user_id}",
+            "/memories",
+            headers=headers,
             catch_response=True,
-            name="/api/memory/[user_id]"
+            name="/memories"
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -61,17 +69,22 @@ class MemoriaUser(HttpUser):
                 response.failure(f"Failed to get memories: {response.status_code}")
     
     @task(1)
-    def get_memory_summary(self):
-        """Test memory summary endpoint"""
+    def get_insights(self):
+        """Test insights endpoint"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
+        }
         with self.client.get(
-            f"/api/memory/{self.user_id}/summary",
+            "/insights",
+            headers=headers,
             catch_response=True,
-            name="/api/memory/[user_id]/summary"
+            name="/insights"
         ) as response:
             if response.status_code == 200:
                 response.success()
             else:
-                response.failure(f"Failed to get summary: {response.status_code}")
+                response.failure(f"Failed to get insights: {response.status_code}")
     
     @task(1)
     def get_memory_insights(self):
@@ -86,10 +99,35 @@ class MemoriaUser(HttpUser):
             else:
                 response.failure(f"Failed to get insights: {response.status_code}")
     
-    def check_task_status(self, task_id: str):
-        """Check the status of an async task"""
-        # This would check task completion in a real scenario
-        pass
+    def poll_task_status(self, task_id: str, headers: dict):
+        """Poll task status until completion"""
+        max_polls = 10
+        for _ in range(max_polls):
+            with self.client.get(
+                f"/tasks/{task_id}",
+                headers=headers,
+                catch_response=True,
+                name="/tasks/{task_id}"
+            ) as response:
+                if response.status_code == 200:
+                    status_data = response.json()
+                    if status_data["status"] == "completed":
+                        response.success()
+                        break
+                    elif status_data["status"] == "failed":
+                        response.failure("Task failed")
+                        break
+                else:
+                    response.failure(f"Failed to poll task: {response.status_code}")
+            time.sleep(0.5)
+        else:
+            self.environment.events.request_failure.fire(
+                request_type="GET",
+                name="/tasks/{task_id}",
+                response_time=0,
+                response_length=0,
+                exception=Exception("Task poll timeout")
+            )
 
 class MemoryStressTest(HttpUser):
     """High-load testing for memory operations"""
@@ -98,20 +136,29 @@ class MemoryStressTest(HttpUser):
     
     def on_start(self):
         self.user_id = f"stress_user_{random.randint(1000, 9999)}"
+        self.api_key = "test-key"
     
     @task(5)
-    def rapid_memory_storage(self):
-        """Rapid memory storage for stress testing"""
+    def rapid_chat_submission(self):
+        """Rapid chat submission for stress testing"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
+        }
         messages = [
-            {"user_id": self.user_id, "conversation_id": f"conv_{i}", "message": f"Stress test message {i}"}
+            {
+                "conversation_id": f"conv_{i}",
+                "message": {"content": f"Stress test message {i}"}
+            }
             for i in range(10)
         ]
         
         for message in messages:
             self.client.post(
-                "/api/memory/store",
+                "/chat/async",
                 json=message,
-                name="/api/memory/store (stress)"
+                headers=headers,
+                name="/chat/async (stress)"
             )
 
 class BatchMemoryTest(HttpUser):
@@ -121,29 +168,33 @@ class BatchMemoryTest(HttpUser):
     
     def on_start(self):
         self.user_id = f"batch_user_{random.randint(1000, 9999)}"
+        self.api_key = "test-key"
     
     @task(1)
-    def batch_memory_store(self):
-        """Store multiple memories in batch"""
-        batch_data = {
-            "user_id": self.user_id,
-            "conversation_id": f"batch_conv_{random.randint(1000, 9999)}",
-            "messages": [
-                {"content": f"Message {i} about AI", "timestamp": time.time() + i}
-                for i in range(50)
-            ]
+    def batch_chat_submission(self):
+        """Submit multiple chats in sequence (simulating batch)"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
         }
+        conversation_id = f"batch_conv_{random.randint(1000, 9999)}"
+        messages = [
+            {"conversation_id": conversation_id, "message": {"content": f"Batch message {i} about AI"}}
+            for i in range(5)  # Smaller batch for load test
+        ]
         
-        with self.client.post(
-            "/api/memory/batch/store",
-            json=batch_data,
-            catch_response=True,
-            name="/api/memory/batch/store"
-        ) as response:
-            if response.status_code == 202:
-                response.success()
-            else:
-                response.failure(f"Batch store failed: {response.status_code}")
+        for message in messages:
+            with self.client.post(
+                "/chat/async",
+                json=message,
+                headers=headers,
+                catch_response=True,
+                name="/chat/async (batch)"
+            ) as response:
+                if response.status_code == 200:
+                    response.success()
+                else:
+                    response.failure(f"Batch chat failed: {response.status_code}")
 
 class SyncComparisonTest(HttpUser):
     """Test for comparing sync vs async performance"""
@@ -152,22 +203,27 @@ class SyncComparisonTest(HttpUser):
     
     def on_start(self):
         self.user_id = f"sync_user_{random.randint(1000, 9999)}"
+        self.api_key = "test-key"
     
     @task(1)
-    def sync_memory_store(self):
-        """Test synchronous memory storage (for comparison)"""
+    def sync_chat(self):
+        """Test synchronous chat (for comparison)"""
+        headers = {
+            "X-Api-Key": self.api_key,
+            "X-User-Id": self.user_id
+        }
+        conversation_id = f"sync_conv_{random.randint(1000, 9999)}"
         message = {
-            "user_id": self.user_id,
-            "conversation_id": f"sync_conv_{random.randint(1000, 9999)}",
-            "message": "Sync test message",
-            "timestamp": time.time()
+            "conversation_id": conversation_id,
+            "message": {"content": "Sync test message"}
         }
         
         with self.client.post(
-            "/api/memory/store/sync",
+            "/chat",
             json=message,
+            headers=headers,
             catch_response=True,
-            name="/api/memory/store/sync"
+            name="/chat (sync)"
         ) as response:
             if response.status_code == 200:
                 response_time = response.elapsed.total_seconds() * 1000
@@ -175,12 +231,12 @@ class SyncComparisonTest(HttpUser):
                 # Log sync response time for comparison
                 events.request.fire(
                     request_type="POST",
-                    name="/api/memory/store/sync (response_time)",
+                    name="/chat (sync response_time)",
                     response_time=response_time,
                     response_length=len(response.content)
                 )
             else:
-                response.failure(f"Sync store failed: {response.status_code}")
+                response.failure(f"Sync chat failed: {response.status_code}")
 
 # Custom events for performance tracking
 @events.test_start.add_listener
@@ -188,9 +244,9 @@ def on_test_start(environment, **kwargs):
     """Called when load test starts"""
     print("Starting Memoria async system load test...")
     print("Test scenarios:")
-    print("- Normal user behavior (store, retrieve, summarize)")
-    print("- Stress testing (rapid requests)")
-    print("- Batch operations")
+    print("- Normal user behavior (chat async, poll tasks, get memories/insights)")
+    print("- Stress testing (rapid chat submissions)")
+    print("- Batch chat submissions")
     print("- Sync vs async comparison")
 
 @events.test_stop.add_listener
@@ -201,16 +257,11 @@ def on_test_stop(environment, **kwargs):
 
 @events.request.add_listener
 def on_request(request_type, name, response_time, response_length, response, context, exception, **kwargs):
-    """Log successful requests"""
+    """Log requests"""
     if exception is not None:
-        return
-    if "store" in name and response_time < 500:
+        print(f"❌ Request failed: {name} - {exception}")
+    elif "store" in name and response_time < 500:
         print(f"✅ Fast async response: {response_time:.2f}ms")
-
-@events.request_failure.add_listener
-def on_request_failure(request_type, name, response_time, exception, **kwargs):
-    """Log failed requests"""
-    print(f"❌ Request failed: {name} - {exception}")
 
 # Performance benchmarks
 class PerformanceBenchmark:
@@ -220,12 +271,12 @@ class PerformanceBenchmark:
     def get_expected_performance():
         """Return expected performance metrics"""
         return {
-            "async_store_response_time": {
-                "target": "< 200ms",
+            "async_chat_response_time": {
+                "target": "< 200ms (task submission)",
                 "acceptable": "< 500ms",
                 "current": "Testing..."
             },
-            "sync_store_response_time": {
+            "sync_chat_response_time": {
                 "target": "2-6 seconds (baseline)",
                 "acceptable": "< 10 seconds",
                 "current": "Testing..."

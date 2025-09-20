@@ -73,6 +73,16 @@ OPENAI_BASE_URL=https://openrouter.ai/api/v1
 docker compose up -d
 ```
 
+### System Dependencies (For Local Development Without Docker)
+For local development on Linux, install required system libraries:
+```bash
+sudo apt-get update
+sudo apt-get install -y libpq-dev libssl-dev gcc
+```
+For Windows and Mac, it's recommended to use Docker to avoid system dependency issues. If installing locally:
+- **Windows**: Use WSL2 with Ubuntu and run the apt-get commands above.
+- **Mac**: Use Homebrew: `brew install postgresql openssl`
+
 **That's it!** Your system is running at:
 - **API**: http://localhost:8000
 - **Docs**: http://localhost:8000/docs

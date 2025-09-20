@@ -4,7 +4,7 @@ Threat pattern database and signature management
 import json
 import hashlib
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime
 import logging
 
@@ -22,7 +22,7 @@ class ThreatSignature:
     updated_at: str
     confidence: float = 0.8
     enabled: bool = True
-    tags: List[str] = []
+    tags: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         if self.tags is None:
@@ -57,7 +57,7 @@ class ThreatDatabase:
             ThreatSignature(
                 id="prompt_injection_001",
                 name="Direct Prompt Override",
-                pattern=r'(?i)\b(ignore|disregard|override)\s+(previous|all)\s+(instructions?|prompts?)\b',
+                pattern=r'(?i)(ignore|disregard|override).*(instructions?|prompts?)\b',
                 threat_type="prompt_injection",
                 severity="critical",
                 description="Attempt to override system instructions",
@@ -86,7 +86,7 @@ class ThreatDatabase:
             ThreatSignature(
                 id="jailbreak_001",
                 name="Role Manipulation",
-                pattern=r'(?i)\b(you\s+are|pretend\s+to\s+be|act\s+as)\s+(a\s+)?\b(hacker|attacker|malicious|evil)\b',
+                pattern=r'(?i)(you\s+are).*(different\s+ai|hacker|attacker|malicious|evil)',
                 threat_type="jailbreak",
                 severity="high",
                 description="Attempt to change AI behavior through role manipulation",
@@ -111,6 +111,20 @@ class ThreatDatabase:
                 tags=["jailbreak", "restriction_bypass", "medium"]
             ),
             
+            ThreatSignature(
+                id="jailbreak_003",
+                name="Role Impersonation",
+                pattern=r'(?i)\b(act\s+as|pretend\s+to\s+be)\s+(a\s+)?(hacker|attacker|admin|administrator|evil)',
+                threat_type="jailbreak",
+                severity="high",
+                description="Attempt to impersonate privileged roles",
+                mitigation="Maintain system role and log attempt",
+                created_at=datetime.utcnow().isoformat(),
+                updated_at=datetime.utcnow().isoformat(),
+                confidence=0.9,
+                tags=["jailbreak", "role_impersonation", "high"]
+            ),
+            
             # Code Injection
             ThreatSignature(
                 id="code_injection_001",
@@ -130,7 +144,7 @@ class ThreatDatabase:
             ThreatSignature(
                 id="data_exfil_001",
                 name="Data Exfiltration Attempt",
-                pattern=r'(?i)\b(send|transmit|upload|leak)\s+(data|information|files?)\s+(to|from)\b',
+                pattern=r'(?i)(send|transmit|upload|leak).*(data|information|files?)',
                 threat_type="data_exfiltration",
                 severity="high",
                 description="Attempt to exfiltrate data",

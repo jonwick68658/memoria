@@ -8,7 +8,7 @@ prompt injection attacks while preserving the intended functionality.
 import re
 import json
 from typing import Dict, Any, List, Optional
-from .security_pipeline import SecurityPipeline
+from memoria.security.security_pipeline import SecurityPipeline
 
 
 class TemplateSanitizer:

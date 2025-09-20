@@ -32,6 +32,12 @@ from memoria.sdk import MemoriaClient
 from app.celery_app import celery  # Corrected from celery_app to celery
 from app.metrics import record_api_call, record_task_submission
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from app.dependencies import get_api_key, get_user_id, rate_limited
+
 logger = logging.getLogger("memoria.app")
 logger.setLevel(settings.log_level)
 
@@ -40,21 +46,23 @@ validate_settings()
 app = FastAPI(title="Memoria Gateway", version="2.0.0", default_response_class=ORJSONResponse)
 client = MemoriaClient.create()
 
-# ---------- Simple in-process rate limit (per API key) ----------
-_rate_state: dict[str, tuple[float, float]] = {}  # key -> (last_ts, tokens)
-RPS = settings.rate_limit_rps
+# ---------- Redis-based rate limiting with slowapi ----------
+limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"], storage_uri=settings.redis_url)
 
-def rate_limit(x_api_key: str) -> None:
-    if not RPS or RPS <= 0:
-        return
-    now = time.time()
-    last_ts, tokens = _rate_state.get(x_api_key, (now, RPS))
-    elapsed = now - last_ts
-    tokens = min(RPS, tokens + elapsed * RPS)
-    if tokens < 1.0:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded")
-    tokens -= 1.0
-    _rate_state[x_api_key] = (now, tokens)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ---------- Middleware for Request ID ----------
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    req_id = request.headers.get("X-Request-Id", str(uuid.uuid4()))
+    start = time.time()
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = req_id
+    response.headers["X-Frame-Options"] = "DENY"
+    logger.info("req_id=%s method=%s path=%s status=%s time_ms=%.2f",
+                req_id, request.method, request.url.path, response.status_code, (time.time() - start) * 1000.0)
+    return response
 
 # ---------- Middleware for Request ID ----------
 @app.middleware("http")
@@ -110,22 +118,14 @@ class TaskStatusResponse(BaseModel):
     error: Optional[str] = None
     timestamp: datetime
 
-# ---------- Auth helpers ----------
-def auth(x_api_key: str = Header(..., alias="X-Api-Key")) -> str:
-    if x_api_key != settings.gateway_api_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    rate_limit(x_api_key)
-    return x_api_key
-
-def get_user_id(x_user_id: str = Header(..., alias="X-User-Id")) -> str:
-    return x_user_id
 
 # ---------- Synchronous Endpoints (Legacy) ----------
 @app.post("/chat", response_model=ChatResponse)
-def chat(
+async def chat(
     req: ChatRequest,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Legacy synchronous chat endpoint - use /chat/async for async processing"""
     try:
@@ -138,10 +138,11 @@ def chat(
     return JSONResponse(content=resp.model_dump())
 
 @app.post("/correction")
-def correction(
+async def correction(
     req: CorrectionRequest,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Legacy synchronous correction endpoint - use /correction/async for async processing"""
     try:
@@ -153,10 +154,11 @@ def correction(
     return {"status": "ok"}
 
 @app.post("/insights/generate", response_model=InsightResponse)
-def gen_insights(
+async def gen_insights(
     conversation_id: Optional[str] = None,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Legacy synchronous insights endpoint - use /insights/generate/async for async processing"""
     try:
@@ -169,10 +171,11 @@ def gen_insights(
 
 # ---------- Asynchronous Endpoints ----------
 @app.post("/chat/async", response_model=AsyncTaskResponse)
-def chat_async(
+async def chat_async(
     req: ChatRequest,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Submit chat processing as an async task"""
     try:
@@ -192,10 +195,11 @@ def chat_async(
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.post("/correction/async", response_model=AsyncTaskResponse)
-def correction_async(
+async def correction_async(
     req: CorrectionRequest,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Submit memory correction as an async task"""
     try:
@@ -215,10 +219,11 @@ def correction_async(
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.post("/insights/generate/async", response_model=AsyncTaskResponse)
-def gen_insights_async(
+async def gen_insights_async(
     conversation_id: Optional[str] = None,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Submit insights generation as an async task"""
     try:
@@ -239,9 +244,10 @@ def gen_insights_async(
 
 # ---------- Task Status Endpoints ----------
 @app.get("/tasks/{task_id}", response_model=TaskStatusResponse)
-def get_task_status(
+async def get_task_status(
     task_id: str,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
+    _ = Depends(rate_limited),
 ):
     """Get the status and result of an async task"""
     try:
@@ -275,9 +281,10 @@ def get_task_status(
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.get("/tasks")
-def list_tasks(
-    _=Depends(auth),
+async def list_tasks(
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """List active tasks for a user (requires monitoring setup)"""
     try:
@@ -290,10 +297,11 @@ def list_tasks(
 
 # ---------- Legacy Endpoints ----------
 @app.get("/memories")
-def list_memories(
+async def list_memories(
     conversation_id: Optional[str] = None,
-    _=Depends(auth),
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """List memories (synchronous - lightweight operation)"""
     try:
@@ -304,9 +312,10 @@ def list_memories(
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.get("/insights")
-def get_insights(
-    _=Depends(auth),
+async def get_insights(
+    api_key: str = Depends(get_api_key),
     user_id: str = Depends(get_user_id),
+    _ = Depends(rate_limited),
 ):
     """Get insights (synchronous - lightweight operation)"""
     try:
@@ -318,22 +327,22 @@ def get_insights(
 
 # ---------- Health Checks ----------
 @app.get("/healthz")
-def healthz():
+async def healthz():
     """Basic health check"""
     try:
-        with client.db.pool.connection() as conn:
-            conn.execute("SELECT 1").fetchone()
+        with client.db.SessionLocal() as session:
+            session.execute(text("SELECT 1")).fetchone()
         return {"status": "ok", "db": "ok"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.get("/healthz/detailed")
-def healthz_detailed():
+async def healthz_detailed():
     """Detailed health check including Celery"""
     try:
         # Check database
-        with client.db.pool.connection() as conn:
-            conn.execute("SELECT 1").fetchone()
+        with client.db.SessionLocal() as session:
+            session.execute(text("SELECT 1")).fetchone()
         
         # Check Celery
         inspect = celery.control.inspect()
@@ -352,5 +361,5 @@ def healthz_detailed():
 
 # ---------- Graceful shutdown ----------
 @app.on_event("shutdown")
-def shutdown() -> None:
-    client.db.pool.close()
+async def shutdown() -> None:
+    client.db.engine.dispose()

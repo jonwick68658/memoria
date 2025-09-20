@@ -4,7 +4,7 @@ import logging
 from typing import Dict, List, Optional
 
 import httpx
-from openai import OpenAI
+from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type
 
 from .config import settings, MemoriaConfig
@@ -48,12 +48,12 @@ class _Backend:
             read=config.read_timeout,
             write=config.write_timeout,
         )
-        self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
         self.extra_headers = _provider_headers(provider, config)
 
-    def chat(self, model: str, system_prompt: str, user_prompt: str, *, max_tokens: int, temperature: float) -> str:
+    async def chat(self, model: str, system_prompt: str, user_prompt: str, *, max_tokens: int, temperature: float) -> str:
         model = _normalize_model(self.provider, model)
-        resp = self.client.chat.completions.create(
+        resp = await self.client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -65,9 +65,9 @@ class _Backend:
         )
         return (resp.choices[0].message.content or "").strip()
 
-    def embed(self, model: str, text: str) -> List[float]:
+    async def embed(self, model: str, text: str) -> List[float]:
         model = _normalize_model(self.provider, model)
-        resp = self.client.embeddings.create(
+        resp = await self.client.embeddings.create(
             model=model,
             input=[text],
             extra_headers=self.extra_headers or None,
@@ -98,7 +98,7 @@ class LLMGateway:
         wait=wait_exponential_jitter(initial=0.5, max=4.0),
         retry=retry_if_exception_type(Exception),
     )
-    def chat(
+    async def chat(
         self,
         system_prompt: str,
         user_prompt: str,
@@ -109,7 +109,7 @@ class LLMGateway:
         last_err = None
         for b in self.backends:
             try:
-                return b.chat(self.model, system_prompt, user_prompt, max_tokens=max_tokens, temperature=temperature)
+                return await b.chat(self.model, system_prompt, user_prompt, max_tokens=max_tokens, temperature=temperature)
             except Exception as e:
                 last_err = e
                 logger.warning("Provider %s failed for chat; trying next. Error: %s", b.provider, e)
@@ -137,11 +137,11 @@ class EmbeddingClient:
         wait=wait_exponential_jitter(initial=0.5, max=4.0),
         retry=retry_if_exception_type(Exception),
     )
-    def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> List[float]:
         last_err = None
         for b in self.backends:
             try:
-                return b.embed(self.model, text)
+                return await b.embed(self.model, text)
             except Exception as e:
                 last_err = e
                 logger.warning("Provider %s failed for embedding; trying next. Error: %s", b.provider, e)

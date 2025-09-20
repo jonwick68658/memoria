@@ -9,9 +9,9 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
 
-from .input_validator import InputValidator, ValidationResult
-from .semantic_analyzer import SemanticAnalyzer, SemanticAnalysisResult
-from .threat_database import ThreatDatabase, threat_db
+from memoria.security.input_validator import InputValidator, ValidationResult
+from memoria.security.semantic_analyzer import SemanticAnalyzer, SemanticAnalysisResult
+from memoria.security.threat_database import ThreatDatabase, threat_db
 
 
 @dataclass
@@ -325,7 +325,7 @@ class SecurityPipeline:
         }
         # Try to forward to the global monitor; fall back to structured log
         try:
-            from .security_monitor import get_security_monitor  # local import to avoid cycles
+            from memoria.security.security_monitor import get_security_monitor  # local import to avoid cycles
             monitor = get_security_monitor()
             # monitor expects details dict; include payload within details for richer info
             monitor.report_security_event(

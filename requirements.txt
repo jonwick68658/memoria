@@ -5,10 +5,12 @@ pydantic==2.7.4
 httpx==0.26.0
 orjson==3.10.7
 tenacity==8.3.0
+urllib3==2.0.7
 
 # Data & storage
 psycopg[binary]==3.2.3
 pgvector==0.2.5
+sqlalchemy==2.0.23
 
 # Async & queue
 redis==5.0.1
@@ -17,6 +19,11 @@ sse-starlette==1.6.5
 
 # LLM clients
 openai==1.40.0
+
+# Security & utils
+slowapi==0.1.9
+presidio-analyzer==2.2.351
+structlog==24.1.0
 
 # Observability & utils
 prometheus-client==0.19.0

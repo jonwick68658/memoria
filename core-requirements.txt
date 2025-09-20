@@ -1,6 +1,6 @@
 # Web Framework & Server
-fastapi==0.104.1
-uvicorn==0.24.0
+fastapi==0.110.0
+uvicorn==0.24.0.post1
 gunicorn==22.0.0
 python-multipart==0.0.6
 aiohttp==3.9.5
@@ -63,7 +63,20 @@ schedule==1.2.0
 apscheduler==3.10.4
 
 # CLI & Utilities
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 httpx==0.26.0
 requests==2.32.3
 jinja2==3.1.4
+
+# Pydantic (for compatibility)
+pydantic==2.7.4
+
+# JSON handling
+orjson==3.10.7
+
+# Retry utilities
+tenacity==8.3.0
+
+# Database drivers
+psycopg[binary]==3.2.3
+pgvector==0.2.5
